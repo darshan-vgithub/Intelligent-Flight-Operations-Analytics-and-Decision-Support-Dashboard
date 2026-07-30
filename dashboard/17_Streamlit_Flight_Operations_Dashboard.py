@@ -170,9 +170,12 @@ selected_alert = st.sidebar.multiselect(
 
 selected_country = st.sidebar.multiselect(
     "Origin Country",
-    sorted(occ_df["origin_country"].dropna().unique()),
-    default=sorted(occ_df["origin_country"].dropna().unique())
+    options=sorted(occ_df["origin_country"].dropna().unique()),
+    default=[]
 )
+
+if len(selected_country) == 0:
+    selected_country = occ_df["origin_country"].dropna().unique()
 
 filtered_df = occ_df[
     (occ_df["flight_phase"].isin(selected_phase)) &
@@ -180,3 +183,107 @@ filtered_df = occ_df[
     (occ_df["OCC_Alert_Level"].isin(selected_alert)) &
     (occ_df["origin_country"].isin(selected_country))
 ]
+
+# ============================================================
+# Risk Analysis Dashboard
+# ============================================================
+
+st.header("📈 Flight Risk Analysis")
+
+col1, col2 = st.columns(2)
+
+# ------------------------------------------------------------
+# Hybrid Risk Score Distribution
+# ------------------------------------------------------------
+
+with col1:
+
+    fig = px.histogram(
+        filtered_df,
+        x="Hybrid_Flight_Risk_Score",
+        nbins=30,
+        title="Hybrid Flight Risk Score Distribution"
+    )
+
+    fig.update_layout(
+        xaxis_title="Hybrid Flight Risk Score",
+        yaxis_title="Number of Flights"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+# ------------------------------------------------------------
+# Hybrid Risk Category
+# ------------------------------------------------------------
+
+with col2:
+
+    risk_counts = (
+        filtered_df["Hybrid_Risk_Category"]
+        .value_counts()
+        .reset_index()
+    )
+
+    risk_counts.columns = ["Risk Category", "Flights"]
+
+    fig = px.pie(
+        risk_counts,
+        names="Risk Category",
+        values="Flights",
+        title="Hybrid Risk Category Distribution",
+        hole=0.4
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
+
+col3, col4 = st.columns(2)
+
+# ------------------------------------------------------------
+# OCC Alert Levels
+# ------------------------------------------------------------
+
+with col3:
+
+    alert_counts = (
+        filtered_df["OCC_Alert_Level"]
+        .value_counts()
+        .reset_index()
+    )
+
+    alert_counts.columns = ["Alert Level", "Flights"]
+
+    fig = px.bar(
+        alert_counts,
+        x="Alert Level",
+        y="Flights",
+        title="OCC Alert Levels"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+# ------------------------------------------------------------
+# Flight Phase
+# ------------------------------------------------------------
+
+with col4:
+
+    phase_counts = (
+        filtered_df["flight_phase"]
+        .value_counts()
+        .reset_index()
+    )
+
+    phase_counts.columns = ["Flight Phase", "Flights"]
+
+    fig = px.bar(
+        phase_counts,
+        x="Flight Phase",
+        y="Flights",
+        title="Flight Phase Distribution"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+st.divider()
