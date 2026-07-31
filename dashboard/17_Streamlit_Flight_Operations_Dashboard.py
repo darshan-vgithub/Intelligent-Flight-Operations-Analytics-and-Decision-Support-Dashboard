@@ -287,3 +287,96 @@ with col4:
     st.plotly_chart(fig, use_container_width=True)
 
 st.divider()
+
+# ============================================================
+# Information Overload Mitigation
+# ============================================================
+
+st.header("🛡️ Information Overload Mitigation")
+
+# ------------------------------------------------------------
+# Calculate Metrics
+# ------------------------------------------------------------
+
+total_flights = len(filtered_df)
+
+routine_flights = filtered_df[
+    filtered_df["OCC_Alert_Level"] == "Routine"
+].shape[0]
+
+medium_alerts = filtered_df[
+    filtered_df["OCC_Alert_Level"] == "Medium"
+].shape[0]
+
+high_alerts = filtered_df[
+    filtered_df["OCC_Alert_Level"] == "High"
+].shape[0]
+
+critical_alerts = filtered_df[
+    filtered_df["OCC_Alert_Level"] == "Critical"
+].shape[0]
+
+priority_flights = high_alerts + critical_alerts
+
+workload_reduction = (
+    (routine_flights / total_flights) * 100
+    if total_flights > 0 else 0
+)
+
+# ------------------------------------------------------------
+# KPI Cards
+# ------------------------------------------------------------
+
+c1, c2, c3, c4, c5 = st.columns(5)
+
+with c1:
+    st.metric("Flights Analysed", f"{total_flights:,}")
+
+with c2:
+    st.metric("Routine Flights", f"{routine_flights:,}")
+
+with c3:
+    st.metric("High + Critical", f"{priority_flights:,}")
+
+with c4:
+    st.metric("Critical Alerts", f"{critical_alerts:,}")
+
+with c5:
+    st.metric(
+        "Workload Reduction",
+        f"{workload_reduction:.2f}%"
+    )
+
+st.divider()
+
+# ============================================================
+# Flights Requiring Immediate Attention
+# ============================================================
+
+st.subheader("🚨 Flights Requiring Immediate Attention")
+
+priority_df = filtered_df[
+    filtered_df["OCC_Alert_Level"].isin(["High", "Critical"])
+].copy()
+
+priority_df = priority_df.sort_values(
+    by="Flight_Priority_Rank"
+)
+
+columns = [
+    "Flight_Priority_Rank",
+    "callsign",
+    "origin_country",
+    "Hybrid_Flight_Risk_Score",
+    "Hybrid_Risk_Category",
+    "OCC_Alert_Level",
+    "OCC_Recommendation"
+]
+
+st.dataframe(
+    priority_df[columns],
+    use_container_width=True,
+    hide_index=True
+)
+
+st.divider()
