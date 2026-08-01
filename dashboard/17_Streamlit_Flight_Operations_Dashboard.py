@@ -62,6 +62,8 @@ PROJECT_DIR = CURRENT_DIR.parent
 # data/final folder
 DATA_DIR = PROJECT_DIR / "data" / "final"
 
+ASSETS_DIR = CURRENT_DIR / "assets"
+
 # ------------------------------------------------------------
 # Show paths for debugging
 # ------------------------------------------------------------
@@ -289,6 +291,67 @@ with col4:
 st.divider()
 
 # ============================================================
+# Operational Flight Map
+# ============================================================
+
+st.header("🗺 Operational Flight Map")
+
+st.markdown("""
+This map displays the geographical locations of all flights using their
+latest ADS-B positions. Flights are coloured according to their Hybrid
+Risk Category, enabling OCC operators to quickly identify high-risk
+aircraft and their current locations.
+""")
+
+fig = px.scatter_mapbox(
+    filtered_df,
+    lat="latitude",
+    lon="longitude",
+    color="Hybrid_Risk_Category",
+    hover_name="callsign",
+    hover_data={
+        "origin_country": True,
+        "Hybrid_Flight_Risk_Score": ":.2f",
+        "OCC_Alert_Level": True,
+        "velocity": ":.1f",
+        "baro_altitude": ":.0f",
+        "latitude": False,
+        "longitude": False,
+    },
+    zoom=1.5,
+    height=650,
+    color_discrete_map={
+        "Low": "green",
+        "Medium": "orange",
+        "High": "red",
+        "Critical": "darkred"
+    }
+)
+
+fig.update_layout(
+    mapbox_style="open-street-map",
+    margin=dict(l=0, r=0, t=0, b=0)
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+st.info("""
+**Operational Flight Map**
+
+• Displays the current positions of all monitored flights.
+
+• Marker colours represent the Hybrid AI Risk Category.
+
+• Hover over a flight to view operational details including
+  callsign, origin country, alert level, altitude and speed.
+
+This provides OCC personnel with geographical situational awareness,
+complementing the AI-driven risk assessment and decision support.
+""")
+
+st.divider()
+
+# ============================================================
 # Information Overload Mitigation
 # ============================================================
 
@@ -380,3 +443,360 @@ st.dataframe(
 )
 
 st.divider()
+
+# ============================================================
+# Decision Support Dashboard
+# ============================================================
+
+st.header("🎯 Decision Support Dashboard")
+
+st.markdown("""
+This section converts the Hybrid AI Risk Assessment into actionable
+operational recommendations for the Operations Control Centre (OCC).
+""")
+
+# ------------------------------------------------------------
+# Recommendation Summary
+# ------------------------------------------------------------
+
+recommendation_counts = (
+    filtered_df["OCC_Recommendation"]
+    .value_counts()
+    .reset_index()
+)
+
+recommendation_counts.columns = [
+    "Recommendation",
+    "Flights"
+]
+
+col1, col2 = st.columns([1, 2])
+
+# ------------------------------------------------------------
+# Recommendation Table
+# ------------------------------------------------------------
+
+with col1:
+
+    st.subheader("Recommendation Summary")
+
+    st.dataframe(
+        recommendation_counts,
+        hide_index=True,
+        use_container_width=True
+    )
+
+# ------------------------------------------------------------
+# Recommendation Chart
+# ------------------------------------------------------------
+
+with col2:
+
+    fig = px.bar(
+        recommendation_counts,
+        x="Recommendation",
+        y="Flights",
+        color="Recommendation",
+        title="Operational Recommendations"
+    )
+
+    fig.update_layout(
+        xaxis_title="Recommendation",
+        yaxis_title="Number of Flights",
+        showlegend=False
+    )
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
+
+st.divider()
+
+# ============================================================
+# Operational Action Summary
+# ============================================================
+
+st.subheader("🚦 Operational Action Summary")
+
+# ------------------------------------------------------------
+# Recommendation Mapping
+# ------------------------------------------------------------
+
+recommendation_mapping = {
+    "Routine monitoring": "🟢 Routine",
+    "Continue enhanced monitoring": "🟡 Enhanced",
+    "Notify OCC supervisor and increase monitoring": "🟠 Supervisor",
+    "Immediate operational intervention required": "🔴 Immediate"
+}
+
+recommendation_counts = (
+    filtered_df["OCC_Recommendation"]
+    .value_counts()
+    .rename_axis("Recommendation")
+    .reset_index(name="Flights")
+)
+
+recommendation_counts["Dashboard_Label"] = (
+    recommendation_counts["Recommendation"]
+    .map(recommendation_mapping)
+)
+
+summary = dict(
+    zip(
+        recommendation_counts["Dashboard_Label"],
+        recommendation_counts["Flights"]
+    )
+)
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("🟢 Routine", summary.get("🟢 Routine", 0))
+col2.metric("🟡 Enhanced", summary.get("🟡 Enhanced", 0))
+col3.metric("🟠 Supervisor", summary.get("🟠 Supervisor", 0))
+col4.metric("🔴 Immediate", summary.get("🔴 Immediate", 0))
+
+st.divider()
+
+# ============================================================
+# Flight Explorer
+# ============================================================
+
+st.header("🔍 Flight Explorer")
+
+st.markdown("""
+Search and inspect individual flights to view their operational status,
+Hybrid AI Risk Assessment, alert level and recommended OCC action.
+""")
+
+# ------------------------------------------------------------
+# Flight Selection
+# ------------------------------------------------------------
+
+flight_list = (
+    filtered_df["callsign"]
+    .dropna()
+    .sort_values()
+    .unique()
+)
+
+selected_callsign = st.selectbox(
+    "Select Flight Callsign",
+    flight_list
+)
+
+# ------------------------------------------------------------
+# Selected Flight
+# ------------------------------------------------------------
+
+selected_flight = filtered_df[
+    filtered_df["callsign"] == selected_callsign
+].iloc[0]
+
+
+# ------------------------------------------------------------
+# Flight Information
+# ------------------------------------------------------------
+
+st.subheader("✈ Flight Information")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+
+    st.metric(
+        "Callsign",
+        selected_flight["callsign"]
+    )
+
+    st.metric(
+        "ICAO24",
+        selected_flight["icao24"]
+    )
+
+    st.metric(
+        "Origin Country",
+        selected_flight["origin_country"]
+    )
+
+with col2:
+
+    st.metric(
+        "Flight Phase",
+        selected_flight["flight_phase"]
+    )
+
+    st.metric(
+        "Risk Category",
+        selected_flight["Hybrid_Risk_Category"]
+    )
+
+    st.metric(
+        "Alert Level",
+        selected_flight["OCC_Alert_Level"]
+    )
+
+with col3:
+
+    st.metric(
+        "Risk Score",
+        round(selected_flight["Hybrid_Flight_Risk_Score"],2)
+    )
+
+    st.metric(
+        "Priority Rank",
+        int(selected_flight["Flight_Priority_Rank"])
+    )
+
+    st.metric(
+        "Recommendation",
+        selected_flight["OCC_Recommendation"]
+    )
+
+st.divider()
+
+
+# ============================================================
+# AI Assessment
+# ============================================================
+
+st.subheader("🧠 Hybrid AI Assessment")
+
+c1, c2 = st.columns(2)
+
+with c1:
+
+    st.metric(
+        "Behaviour Intelligence",
+        round(selected_flight["Behavioural_Intelligence_Score"],2)
+    )
+
+    st.metric(
+        "Operational Intelligence",
+        round(selected_flight["Operational_Intelligence_Score"],2)
+    )
+
+with c2:
+
+    st.metric(
+        "GMM Result",
+        selected_flight["GMM_Anomaly_Label"]
+    )
+
+    st.metric(
+        "ELM Result",
+        selected_flight["ELM_Anomaly_Label"]
+    )
+
+st.divider()
+
+
+
+
+# ============================================================
+# Explainable AI (SHAP)
+# ============================================================
+
+st.header("🧠 Explainable AI (SHAP)")
+
+st.markdown("""
+This section explains **why** the Hybrid AI model classified flights with
+different operational risk levels. The SHAP (SHapley Additive exPlanations)
+analysis improves model transparency by highlighting the contribution of
+each feature to the Hybrid Flight Risk Score.
+""")
+
+st.divider()
+
+st.subheader("📊 Global Feature Importance")
+
+st.image(
+    ASSETS_DIR / "shap_summary.png",
+    caption="SHAP Summary Plot",
+    use_container_width=True
+)
+
+st.info("""
+The SHAP Summary Plot shows the global importance of features used by the
+Hybrid AI Risk Assessment model.
+
+Higher SHAP values indicate a greater contribution towards increasing
+the Hybrid Flight Risk Score.
+
+Key observations:
+
+• Operational Complexity Index has the strongest influence.
+
+• GMM Anomaly Score is one of the primary contributors.
+
+• Flight Operational Score significantly affects risk.
+
+• Vertical Rate contributes to abnormal flight behaviour.
+
+• ELM Anomaly Score supports anomaly detection.
+""")
+
+st.divider()
+
+st.subheader("📈 Feature Dependence")
+
+st.image(
+    ASSETS_DIR / "shap_dependence.png",
+    caption="SHAP Dependence Plot",
+    use_container_width=True
+)
+
+st.info("""
+The dependence plot illustrates how changes in an operational feature
+influence the Hybrid Flight Risk Score.
+
+It highlights non-linear relationships between operational conditions
+and predicted flight risk.
+""")
+
+st.divider()
+
+st.subheader("💧 Local Flight Explanation")
+
+st.image(
+    ASSETS_DIR / "shap_waterfall.png",
+    caption="SHAP Waterfall Plot",
+    use_container_width=True
+)
+
+st.info("""
+The waterfall plot explains an individual prediction by showing how each
+feature increases or decreases the Hybrid Flight Risk Score.
+
+This provides transparency for operational decision-making and helps
+OCC personnel understand why a specific flight received its risk level.
+""")
+
+st.divider()
+
+st.subheader("📌 Explainable AI Findings")
+
+st.success("""
+The Explainable AI analysis demonstrates that the Hybrid Flight Risk Score
+is not generated by a black-box model.
+
+The model primarily considers:
+
+• Operational Complexity Index
+
+• GMM Anomaly Score
+
+• Flight Operational Score
+
+• Vertical Rate
+
+• ELM Anomaly Score
+
+This confirms that the final operational risk assessment combines both
+behavioural anomaly detection and operational intelligence, providing
+transparent and trustworthy decision support for Operations Control
+Centre (OCC) personnel.
+""")
+
+st.divider()
+
