@@ -90,7 +90,9 @@ def load_data():
 
 occ_df, hybrid_df, summary_df = load_data()
 
-st.success("✅ Datasets loaded successfully!")
+st.caption(
+    "🟢 System Status: Operational | All aviation datasets successfully loaded."
+)
 
 # ============================================================
 # Executive KPI Dashboard
