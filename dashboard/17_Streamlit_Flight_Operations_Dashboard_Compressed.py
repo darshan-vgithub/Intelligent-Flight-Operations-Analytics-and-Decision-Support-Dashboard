@@ -321,9 +321,7 @@ with right:
             height=60
         )
 
-# ============================================================
-# ROW 2 — HYBRID RISK DISTRIBUTION + OCC ALERT DISTRIBUTION
-# ============================================================
+
 
 left, right = st.columns(2)
 
